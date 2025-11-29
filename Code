@@ -1,0 +1,433 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_PESSOAS 100
+#define MAX_TELS 20
+
+// ------------------- ESTRUTURAS ----------------------
+
+typedef struct {
+    char numero[12];
+} Telefone;
+
+typedef struct {
+    int id;
+    char nome[31];
+    char cpf[12];
+    char email[31];
+    char nascimento[11];
+    int qtdTels;
+    Telefone tels[MAX_TELS];
+} Pessoa;
+
+Pessoa agenda[MAX_PESSOAS];
+int qtdPessoas = 0;
+
+// ------------------- VALIDAÇÕES ----------------------
+
+int validarNome(char *nome) {
+    return strlen(nome) > 2;
+}
+
+int validarTelefone(char *t) {
+    int tam = strlen(t);
+    if (tam != 10 && tam != 11) return 0;
+    for (int i = 0; i < tam; i++)
+        if (!isdigit(t[i])) return 0;
+    return 1;
+}
+
+int validarEmail(char *email) {
+    return strlen(email) > 10 && strchr(email, '@') != NULL;
+}
+
+int validarCPF(char *cpf) {
+    if (strlen(cpf) != 11) return 0;
+    for (int i = 0; i < 11; i++)
+        if (!isdigit(cpf[i])) return 0;
+    return 1;
+}
+
+int validarData(char *data) {
+    int d, m, a;
+    if (strlen(data) != 10) return 0;
+    if (data[2] != '/' || data[5] != '/') return 0;
+
+    sscanf(data, "%d/%d/%d", &d, &m, &a);
+
+    if (d < 1 || d > 31) return 0;
+    if (m < 1 || m > 12) return 0;
+    if (a < 1900 || a > 2025) return 0;
+
+    return 1;
+}
+
+// ------------------- FUNÇÕES AUXILIARES ----------------------
+
+int buscarPessoaPorNome(char *nome) {
+    for (int i = 0; i < qtdPessoas; i++)
+        if (strcmp(agenda[i].nome, nome) == 0)
+            return i;
+    return -1;
+}
+
+int buscarPessoaPorID(int id) {
+    for (int i = 0; i < qtdPessoas; i++)
+        if (agenda[i].id == id)
+            return i;
+    return -1;
+}
+
+// ------------------- CADASTRAR PESSOA ----------------------
+
+void cadastrarPessoa() {
+    if (qtdPessoas >= MAX_PESSOAS) {
+        printf("Agenda cheia!\n");
+        return;
+    }
+
+    Pessoa p;
+    p.id = qtdPessoas + 1;
+
+    do {
+        printf("Nome: ");
+        scanf(" %[^\n]", p.nome);
+    } while (!validarNome(p.nome) || buscarPessoaPorNome(p.nome) != -1);
+
+    do {
+        printf("Data de nascimento (dd/mm/aaaa): ");
+        scanf(" %s", p.nascimento);
+    } while (!validarData(p.nascimento));
+
+    do {
+        printf("CPF (11 dígitos): ");
+        scanf(" %s", p.cpf);
+    } while (!validarCPF(p.cpf));
+
+    do {
+        printf("Email: ");
+        scanf(" %s", p.email);
+    } while (!validarEmail(p.email));
+
+    p.qtdTels = 0;
+    char op = 'S';
+    while (toupper(op) == 'S') {
+        if (p.qtdTels >= MAX_TELS) break;
+
+        do {
+            printf("Telefone: ");
+            scanf(" %s", p.tels[p.qtdTels].numero);
+        } while (!validarTelefone(p.tels[p.qtdTels].numero));
+
+        p.qtdTels++;
+
+        printf("Adicionar outro telefone? (S/N) ");
+        scanf(" %c", &op);
+    }
+
+    agenda[qtdPessoas++] = p;
+    printf("Pessoa cadastrada!\n");
+}
+
+// ------------------- CADASTRAR TELEFONE ----------------------
+
+void cadastrarTelefone() {
+    int opc, id;
+    char nome[31];
+
+    do {
+        printf("\n1 - Buscar por Nome\n");
+        printf("2 - Buscar por ID\n");
+        printf("3 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 3);
+
+    if (opc == 3) return;
+
+    int idx = -1;
+
+    if (opc == 1) {
+        printf("Nome: ");
+        scanf(" %[^\n]", nome);
+        idx = buscarPessoaPorNome(nome);
+    } else {
+        printf("ID: ");
+        scanf("%d", &id);
+        idx = buscarPessoaPorID(id);
+    }
+
+    if (idx == -1) {
+        printf("Pessoa não encontrada.\n");
+        return;
+    }
+
+    char op = 'S';
+    while (toupper(op) == 'S') {
+        if (agenda[idx].qtdTels >= MAX_TELS) break;
+
+        do {
+            printf("Telefone: ");
+            scanf(" %s", agenda[idx].tels[agenda[idx].qtdTels].numero);
+        } while (!validarTelefone(agenda[idx].tels[agenda[idx].qtdTels].numero));
+
+        agenda[idx].qtdTels++;
+
+        printf("Adicionar outro telefone? (S/N) ");
+        scanf(" %c", &op);
+    }
+
+    printf("Telefone(s) cadastrado(s)!\n");
+}
+
+// ------------------- EDITAR PESSOA / TELEFONE ----------------------
+
+void editarCampo(Pessoa *p) {
+    int opc;
+    do {
+        printf("\n--- EDITAR CAMPO ---\n");
+        printf("1 - Nome\n");
+        printf("2 - Data de Nascimento\n");
+        printf("3 - CPF\n");
+        printf("4 - Email\n");
+        printf("5 - Editar Telefone\n");
+        printf("6 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 6);
+
+    char temp[40];
+
+    switch (opc) {
+        case 1:
+            do {
+                printf("Novo nome: ");
+                scanf(" %[^\n]", temp);
+            } while (!validarNome(temp));
+            strcpy(p->nome, temp);
+            break;
+
+        case 2:
+            do {
+                printf("Nova data: ");
+                scanf(" %s", temp);
+            } while (!validarData(temp));
+            strcpy(p->nascimento, temp);
+            break;
+
+        case 3:
+            do {
+                printf("Novo CPF: ");
+                scanf(" %s", temp);
+            } while (!validarCPF(temp));
+            strcpy(p->cpf, temp);
+            break;
+
+        case 4:
+            do {
+                printf("Novo email: ");
+                scanf(" %s", temp);
+            } while (!validarEmail(temp));
+            strcpy(p->email, temp);
+            break;
+
+        case 5: {
+            if (p->qtdTels == 0) {
+                printf("Nenhum telefone.\n");
+                return;
+            }
+
+            printf("Escolha o telefone:\n");
+            for (int i = 0; i < p->qtdTels; i++)
+                printf("%d - %s\n", i + 1, p->tels[i].numero);
+
+            int escolha;
+            do {
+                scanf("%d", &escolha);
+            } while (escolha < 1 || escolha > p->qtdTels);
+
+            do {
+                printf("Novo telefone: ");
+                scanf(" %s", temp);
+            } while (!validarTelefone(temp));
+
+            strcpy(p->tels[escolha - 1].numero, temp);
+            break;
+        }
+
+        case 6:
+            return;
+    }
+
+    printf("Alteração realizada!\n");
+}
+
+void editarPessoa() {
+    int opc, id;
+    char nome[31];
+
+    do {
+        printf("\n--- EDITAR PESSOA ---\n");
+        printf("1 - Buscar por Nome\n");
+        printf("2 - Buscar por IDPessoa\n");
+        printf("3 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 3);
+
+    if (opc == 3) return;
+
+    int idx = -1;
+
+    if (opc == 1) {
+        printf("Nome: ");
+        scanf(" %[^\n]", nome);
+        idx = buscarPessoaPorNome(nome);
+    } else {
+        printf("ID: ");
+        scanf("%d", &id);
+        idx = buscarPessoaPorID(id);
+    }
+
+    if (idx == -1) {
+        printf("Pessoa não encontrada!\n");
+        return;
+    }
+
+    editarCampo(&agenda[idx]);
+}
+
+void editarTelefone() {
+    editarPessoa();
+}
+
+// ------------------- CONSULTAR ----------------------
+
+void consultar() {
+    int opc, id;
+    char nome[31];
+
+    do {
+        printf("\n--- CONSULTAR ---\n");
+        printf("1 - Buscar por Nome\n");
+        printf("2 - Buscar por IDPessoa\n");
+        printf("3 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 3);
+
+    if (opc == 3) return;
+
+    int idx = -1;
+
+    if (opc == 1) {
+        printf("Nome: ");
+        scanf(" %[^\n]", nome);
+        idx = buscarPessoaPorNome(nome);
+    } else {
+        printf("ID: ");
+        scanf("%d", &id);
+        idx = buscarPessoaPorID(id);
+    }
+
+    if (idx == -1) {
+        printf("Não encontrado.\n");
+        return;
+    }
+
+    Pessoa *p = &agenda[idx];
+
+    printf("\n--- DADOS ---\n");
+    printf("ID: %d\n", p->id);
+    printf("Nome: %s\n", p->nome);
+    printf("CPF: %s\n", p->cpf);
+    printf("Email: %s\n", p->email);
+    printf("Nascimento: %s\n", p->nascimento);
+    printf("Telefones:\n");
+    for (int i = 0; i < p->qtdTels; i++)
+        printf(" %d) %s\n", i + 1, p->tels[i].numero);
+}
+
+// ------------------- EXCLUIR ----------------------
+
+void excluirPessoa() {
+    int id;
+    printf("ID da pessoa para excluir: ");
+    scanf("%d", &id);
+
+    int idx = buscarPessoaPorID(id);
+
+    if (idx == -1) {
+        printf("Não encontrada.\n");
+        return;
+    }
+
+    for (int i = idx; i < qtdPessoas - 1; i++)
+        agenda[i] = agenda[i + 1];
+
+    qtdPessoas--;
+    printf("Excluído!\n");
+}
+
+// ------------------- MENUS ----------------------
+
+void menuCadastrar() {
+    int opc;
+    do {
+        printf("\n--- CADASTRAR ---\n");
+        printf("1 - Pessoa\n");
+        printf("2 - Telefone\n");
+        printf("3 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 3);
+
+    if (opc == 1) cadastrarPessoa();
+    else if (opc == 2) cadastrarTelefone();
+}
+
+void menuEditar() {
+    int opc;
+    do {
+        printf("\n--- EDITAR ---\n");
+        printf("1 - Editar Pessoa\n");
+        printf("2 - Editar Telefone\n");
+        printf("3 - Voltar\n");
+        scanf("%d", &opc);
+    } while (opc < 1 || opc > 3);
+
+    if (opc == 1) editarPessoa();
+    else if (opc == 2) editarTelefone();
+}
+
+void menuConsultar() {
+    consultar();
+}
+
+void menuExcluir() {
+    excluirPessoa();
+}
+
+void menuPrincipal() {
+    int opc;
+    while (1) {
+        do {
+            printf("\n--- MENU PRINCIPAL ---\n");
+            printf("1 - Cadastrar\n");
+            printf("2 - Editar\n");
+            printf("3 - Excluir\n");
+            printf("4 - Consultar\n");
+            printf("5 - Sair\n");
+            scanf("%d", &opc);
+        } while (opc < 1 || opc > 5);
+
+        if (opc == 1) menuCadastrar();
+        else if (opc == 2) menuEditar();
+        else if (opc == 3) menuExcluir();
+        else if (opc == 4) menuConsultar();
+        else break;
+    }
+}
+
+// ------------------- MAIN ----------------------
+
+int main() {
+    menuPrincipal();
+    return 0;
+}
